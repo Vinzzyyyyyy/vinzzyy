@@ -11,12 +11,14 @@
     { "src": "*.svg", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/api/(.*)", "dest": "/api/$1.js" },
 
     { "src": "/", "dest": "/index.html" },
 
     { "src": "/(.*)", "dest": "/$1" },
-
-    { "src": "/.*", "dest": "/404.html", "status": 404 }
+    
+    { "handle": "filesystem" },
+    
+    { "src": "/.*", "status": 404, "dest": "/404.html" }
   ]
 }
