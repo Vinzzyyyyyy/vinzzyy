@@ -18,7 +18,12 @@ async function connectMongo() {
   return cached.conn;
 }
 
-// Schema & Model
+// Fungsi ubah waktu UTC → WIB (Asia/Jakarta)
+function toWIB(date) {
+  return new Date(new Date(date).getTime() + 7 * 60 * 60 * 1000);
+}
+
+// Schema
 const LogSchema = new mongoose.Schema({
   ip: String,
   city: String,
@@ -27,7 +32,14 @@ const LogSchema = new mongoose.Schema({
   latitude: Number,
   longitude: Number,
   org: String,
-  time: Date,
+  time: {
+    type: Date,
+    default: () => new Date(), // UTC default
+    get: (v) => toWIB(v)        // convert ke WIB saat dikirim
+  }
+}, {
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
 const Log = mongoose.models.Log || mongoose.model("Log", LogSchema);
@@ -35,7 +47,7 @@ const Log = mongoose.models.Log || mongoose.model("Log", LogSchema);
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*"); 
+  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -49,27 +61,33 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const { ip, city, region, country } = req.body;
 
-      // cek apakah sudah ada log dengan IP + city + region + country di hari yang sama
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
+      // Cek apakah sudah ada log hari ini (WIB)
+      const startOfDayWIB = toWIB(new Date());
+      startOfDayWIB.setHours(0, 0, 0, 0);
+
+      const startOfDayUTC = new Date(startOfDayWIB.getTime() - 7 * 60 * 60 * 1000);
 
       const existing = await Log.findOne({
         ip,
         city,
         region,
         country,
-        time: { $gte: startOfDay }
+        time: { $gte: startOfDayUTC }
       });
 
       if (existing) {
         return res.status(200).json({
           success: true,
           skipped: true,
-          message: "Log sudah ada, tidak disimpan ulang."
+          message: "Log sudah ada, tidak disimpan ulang.",
         });
       }
 
-      const log = new Log(req.body);
+      const log = new Log({
+        ...req.body,
+        time: new Date() // tetap simpan UTC
+      });
+
       await log.save();
 
       return res.status(200).json({ success: true, log });
