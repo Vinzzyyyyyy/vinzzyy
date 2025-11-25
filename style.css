@@ -1,0 +1,108 @@
+@keyframes gradientAnimation{
+  0% {
+    background-position: 200% 50%;
+  }
+  100%{
+    background-position: 0% 50%;
+  }
+}
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+}
+
+html, body {
+  
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.3s, color 0.3s;
+  background: #ffffff;
+  color: #000000;
+  backdrop-filter: blur(0px);
+}
+
+body {
+  min-height: 100vh;
+}
+.wrapper {
+  flex: 1; /* isi utama dorong footer ke bawah */
+}
+
+footer {
+  background: transparent;
+  color: #aaa;
+  text-align: center;
+  padding: 15px 10px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  border-top: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+}
+
+/* Navbar */
+nav {
+    display: flex;
+    justify-content: space-between; /* kiri & kanan */
+    align-items: center;
+    padding: 15px 25px;
+    background: #f4f4f4;
+    border-bottom: 2px solid #ddd;
+    transition: background 0.3s;
+}
+
+body.dark nav {
+    background: #1e1e1e;
+    border-color: #333;
+}
+
+
+
+body.dark footer {
+    color: #ffffff;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 25px;
+    background: linear-gradient(
+      to right,
+    red,
+    white,
+    red
+    );
+    background-clip: text;
+    color: transparent;
+    background-size: 200% auto;
+    animation: gradientAnimation 1s linear infinite;
+}
+
+main {
+    padding: 50px;
+    text-align: center;
+}
+
+/* SVG warna */
+.icon {
+    fill: currentColor;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+#container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 1000px;
+  margin: 40px auto 0;
+}
+
