@@ -106,7 +106,7 @@ export default async function handler(req, res) {
         const token = jwt.sign(
           { id: user._id, email: user.email },
           JWT_SECRET,
-          { expiresIn: "1m" }
+          { expiresIn: "30m" }
         );
 
         return res.status(200).json({ message: "Login berhasil", token });
