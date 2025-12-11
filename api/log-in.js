@@ -82,11 +82,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: "Login berhasil", token });
     }
 
-    // ADMIN VERIFY (DAN PROMOTE ROLE)
+    // ADMIN VERIFY
     if (action === "adminVerify") {
-      if (!adminToken)
-        return res.status(401).json({ error: "Token admin diperlukan" });
-
       let decoded;
       try {
         decoded = jwt.verify(adminToken, JWT_SECRET);
@@ -151,7 +148,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // GET LIST UNVERIFIED USER (PAKAI ACTION)
+    // LIST UNVERIFIED USER
     if (action === "listUnverified") {
       let decoded;
       try {
