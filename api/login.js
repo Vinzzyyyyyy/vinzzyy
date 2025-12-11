@@ -7,7 +7,7 @@ import crypto from "crypto";
 const uri = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET || "jwtsecret1239451923ur9ajwiaiwjamanpokoknYAmah";
 
-// 🟢 Global connection cache (biar gak connect-close tiap request)
+// Global connection cache
 let client;
 let clientPromise;
 if (!global._mongoClientPromise) {
@@ -16,7 +16,7 @@ if (!global._mongoClientPromise) {
 }
 clientPromise = global._mongoClientPromise;
 
-// 🟢 Kirim OTP email
+// Kirim OTP email
 async function sendOTP(email, otp) {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -46,9 +47,9 @@ export default async function handler(req, res) {
     const users = db.collection("UserData");
 
     if (req.method === "POST") {
-      const { action, email, username, password, otp } = req.body;
+      const { action, email, username, password, otp, adminToken, targetEmail, newPassword } = req.body;
 
-      // 🔹 REGISTER
+      // REGISTER
       if (action === "register") {
         if (!email || !username || !password) {
           return res.status(400).json({ error: "Data tidak lengkap" });
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
           isVerified: false,
           role: "member",
           otp: otpCode,
-          otpExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 menit
+          otpExpires: new Date(Date.now() + 15 * 60 * 1000),
         });
 
         await sendOTP(email, otpCode);
@@ -75,7 +76,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: "Register berhasil, cek email untuk verifikasi" });
       }
 
-      // 🔹 VERIFY OTP
+      // VERIFY OTP
       if (action === "verify") {
         const user = await users.findOne({ email });
         if (!user) return res.status(404).json({ error: "User tidak ditemukan" });
@@ -93,7 +94,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: "Verifikasi berhasil, silakan login" });
       }
 
-      // 🔹 LOGIN
+      // LOGIN
       if (action === "login") {
         const user = await users.findOne({ email });
         if (!user) return res.status(404).json({ error: "User tidak ditemukan" });
@@ -102,7 +103,6 @@ export default async function handler(req, res) {
         if (!match) return res.status(401).json({ error: "Password salah" });
         if (!user.isVerified) return res.status(403).json({ error: "Akun belum diverifikasi" });
 
-        // token expired 1 jam
         const token = jwt.sign(
           { id: user._id, email: user.email },
           JWT_SECRET,
@@ -112,12 +112,53 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: "Login berhasil", token });
       }
 
+      // ADMIN RESET PASSWORD
+      if (action === "adminReset") {
+        try {
+          if (!adminToken || !targetEmail || !newPassword) {
+            return res.status(400).json({ error: "Data tidak lengkap" });
+          }
+
+          // Verifikasi token admin
+          let adminDecoded;
+          try {
+            adminDecoded = jwt.verify(adminToken, JWT_SECRET);
+          } catch {
+            return res.status(401).json({ error: "Token invalid / expired" });
+          }
+
+          const adminUser = await users.findOne({ email: adminDecoded.email });
+          if (!adminUser) return res.status(404).json({ error: "Admin tidak ditemukan" });
+
+          if (adminUser.role !== "admin") {
+            return res.status(403).json({ error: "Akses ditolak, bukan admin" });
+          }
+
+          const targetUser = await users.findOne({ email: targetEmail });
+          if (!targetUser) return res.status(404).json({ error: "User target tidak ditemukan" });
+
+          const hashedNew = await bcrypt.hash(newPassword, 10);
+
+          await users.updateOne(
+            { email: targetEmail },
+            { $set: { password: hashedNew } }
+          );
+
+          return res.status(200).json({ message: "Password user berhasil direset" });
+
+        } catch (err) {
+          console.error("❌ Error adminReset:", err);
+          return res.status(500).json({ error: "Server error", detail: err.message });
+        }
+      }
+
       return res.status(400).json({ error: "Action tidak dikenali" });
     }
 
     return res.status(405).json({ error: "Method tidak diizinkan" });
+
   } catch (err) {
-    console.error("❌ Error API login.js:", err);
+    console.error("❌ Error API:", err);
     return res.status(500).json({ error: "Server error", detail: err.message });
   }
 }
