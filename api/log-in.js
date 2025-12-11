@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       newPassword
     } = req.body;
 
-    // REGISTER (tanpa OTP)
+    // REGISTER
     if (action === "register") {
       if (!email || !username || !password)
         return res.status(400).json({ error: "Data tidak lengkap" });
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
         username,
         email,
         password: hashed,
-        isVerified: false, // verifikasi manual admin
+        isVerified: false,
         role: "member",
       });
 
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // LOGIN (user harus verified)
+    // LOGIN
     if (action === "login") {
       const user = await users.findOne({ email });
       if (!user) return res.status(404).json({ error: "User tidak ditemukan" });
@@ -71,9 +71,7 @@ export default async function handler(req, res) {
       if (!match) return res.status(401).json({ error: "Password salah" });
 
       if (!user.isVerified)
-        return res
-          .status(403)
-          .json({ error: "Akun belum diverifikasi admin" });
+        return res.status(403).json({ error: "Akun belum diverifikasi admin" });
 
       const token = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
@@ -84,7 +82,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: "Login berhasil", token });
     }
 
-    // ADMIN VALIDASI + PROMOTE ROLE
+    // ADMIN VERIFY (DAN PROMOTE ROLE)
     if (action === "adminVerify") {
       if (!adminToken)
         return res.status(401).json({ error: "Token admin diperlukan" });
@@ -115,7 +113,7 @@ export default async function handler(req, res) {
       );
 
       return res.status(200).json({
-        message: `User berhasil diverifikasi dan role diset: ${
+        message: `User diverifikasi. Role: ${
           newRole === "admin" ? "admin" : "member"
         }`,
       });
@@ -151,6 +149,27 @@ export default async function handler(req, res) {
       return res.status(200).json({
         message: "Password user berhasil direset oleh admin",
       });
+    }
+
+    // GET LIST UNVERIFIED USER (PAKAI ACTION)
+    if (action === "listUnverified") {
+      let decoded;
+      try {
+        decoded = jwt.verify(adminToken, JWT_SECRET);
+      } catch {
+        return res.status(401).json({ error: "Token invalid" });
+      }
+
+      const admin = await users.findOne({ email: decoded.email });
+      if (!admin || admin.role !== "admin")
+        return res.status(403).json({ error: "Akses ditolak" });
+
+      const result = await users
+        .find({ isVerified: false })
+        .project({ password: 0 })
+        .toArray();
+
+      return res.status(200).json(result);
     }
 
     return res.status(400).json({ error: "Action tidak dikenali" });
