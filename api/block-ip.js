@@ -37,7 +37,7 @@ async function connectMongo() {
 const BlockIPSchema = new mongoose.Schema({
   ip: { type: String, unique: true },
   reason: String,
-  source: { type: String, default: "manual" },
+  source: { type: String, default: "Blacklisted By Admin" },
   blockedAt: { type: Date, default: Date.now }
 });
 
