@@ -40,10 +40,10 @@ export default async function handler(req, res) {
     await connectMongo();
 
     // 1️⃣ cek DB block
+    console.log("IP:", ip);
     const blocked = await BlockIP.findOne({ ip });
-    if (blocked) {
-      return res.status(403).json({ allowed: false });
-    }
+    console.log("Blocked record:", blocked);
+
     
     if (geo.country_code !== "ID") {
       await BlockIP.updateOne(
