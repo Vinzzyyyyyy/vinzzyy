@@ -35,7 +35,9 @@ export default async function handler(req, res) {
     const ip = geo.ip;
     
     if (!ip) {
-      return res.status(403).json({ allowed: false });
+      return res.status(403).json({ 
+        allowed: false,
+        reason: "IP_NOT_FOUND" });
     }
 
     await connectMongo();
@@ -69,6 +71,7 @@ export default async function handler(req, res) {
 
     return res.json({ allowed: true });
   } catch {
-    return res.status(403).json({ allowed: false });
+    return res.status(403).json({ allowed: false,
+        reason: "ERROR_SERVER" });
   }
 }
