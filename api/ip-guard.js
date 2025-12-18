@@ -28,7 +28,8 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   try {
-    const geoRes = await fetch("https://api.vinzzyy.my.id/api/geo");
+    const geoRes = await fetch("https://api.vinzzyy.my.id/api/geo", {headers: {"x-forwarded-for": ip}});
+
     const geo = await geoRes.json();
     
     const ip = geo.ip;
@@ -40,9 +41,10 @@ export default async function handler(req, res) {
     await connectMongo();
 
     // 1️⃣ cek DB block
-    console.log("IP:", ip);
     const blocked = await BlockIP.findOne({ ip });
-    console.log("Blocked record:", blocked);
+    if (blocked) {
+      return res.status(403).json({ allowed: false });
+    }
 
     
     if (geo.country_code !== "ID") {
