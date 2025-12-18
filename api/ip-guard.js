@@ -28,11 +28,14 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   try {
-    const ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket?.remoteAddress;
-
-    if (!ip) return res.status(403).json({ allowed: false });
+    const geoRes = await fetch("https://api.vinzzyy.my.id/api/geo");
+    const geo = await geoRes.json();
+    
+    const ip = geo.ip;
+    
+    if (!ip) {
+      return res.status(403).json({ allowed: false });
+    }
 
     await connectMongo();
 
@@ -41,16 +44,8 @@ export default async function handler(req, res) {
     if (blocked) {
       return res.status(403).json({ allowed: false });
     }
-
-    // 2️⃣ cek country via API kamu
-    const geoRes = await fetch("https://api.vinzzyy.my.id/api/geo", {
-      headers: { "x-forwarded-for": ip }
-    });
-
-    const geo = await geoRes.json();
-
+    
     if (geo.country_code !== "ID") {
-      // auto block
       await BlockIP.updateOne(
         { ip },
         {
@@ -64,7 +59,10 @@ export default async function handler(req, res) {
         { upsert: true }
       );
 
-      return res.status(403).json({ allowed: false });
+      return res.status(403).json({
+        allowed: false,
+        reason: "COUNTRY_NOT_ALLOWED"
+      });
     }
 
     return res.json({ allowed: true });
