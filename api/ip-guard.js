@@ -22,20 +22,14 @@ const BlockIP =
     })
   );
 
-function toWIB(date) {
-  return new Date(new Date(date).getTime() + 7 * 60 * 60 * 1000);
-}
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.end();
 
   try {
     const { ip, country_code } = req.body || {};
-
     if (!ip || !country_code) {
       return res.status(400).json({
         allowed: false,
@@ -46,35 +40,46 @@ export default async function handler(req, res) {
     await connectMongo();
 
     const blocked = await BlockIP.findOne({ ip });
+
     if (blocked) {
       return res.status(403).json({
         allowed: false,
-        reason: "IP_BLOCKED"
+        reason: "IP_BLOCKED",
+        block: {
+          ip: blocked.ip,
+          source: blocked.source,
+          reason: blocked.reason,
+          blockedAt: blocked.blockedAt
+        }
       });
     }
 
     if (country_code !== "ID") {
-      await BlockIP.updateOne(
-        { ip },
-        {
-          $set: {
-            ip,
-            reason: `Country blocked: ${country_code}`,
-            source: "country",
-            blockedAt: new Date()
-          }
-        },
-        { upsert: true }
-      );
+      const blockData = {
+        ip,
+        reason: `Country blocked: ${country_code}`,
+        source: "country",
+        blockedAt: new Date()
+      };
+
+      await BlockIP.updateOne({ ip }, { $set: blockData }, { upsert: true });
+
       return res.status(403).json({
         allowed: false,
-        reason: "COUNTRY_NOT_ALLOWED"
+        reason: "COUNTRY_NOT_ALLOWED",
+        block: {
+          ip,
+          country: country_code,
+          source: "country",
+          blockedAt: blockData.blockedAt
+        }
       });
     }
 
     return res.json({ allowed: true });
 
   } catch (err) {
+    console.error("IP-GUARD ERROR:", err);
     return res.status(500).json({
       allowed: false,
       reason: "ERROR_SERVER"
