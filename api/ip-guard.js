@@ -18,11 +18,7 @@ const BlockIP =
       ip: String,
       reason: String,
       source: String,
-      blockedAt: {
-        type: Date,
-        default: () => new Date(), // UTC default
-        get: (v) => toWIB(v)        // convert ke WIB saat dikirim
-      }
+      blockedAt: Date
     })
   );
 
@@ -65,11 +61,7 @@ export default async function handler(req, res) {
             ip,
             reason: `Country blocked: ${geo.country_code}`,
             source: "country",
-            blockedAt: {
-              type: Date,
-              default: () => new Date(), // UTC default
-              get: (v) => toWIB(v)        // convert ke WIB saat dikirim
-            }
+            blockedAt: new Date()
           }
         },
         { upsert: true }
