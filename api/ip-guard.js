@@ -23,32 +23,50 @@ const BlockIP =
   );
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
+  // preflight CORS
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.status(200).end();
+  }
+
   try {
-    const geoRes = await fetch("https://api.vinzzyy.my.id/api/geo", {headers: {"x-forwarded-for": ip}});
+    // 1️⃣ ambil IP client dulu
+    const ip =
+      req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
+
+    if (!ip) {
+      return res.status(403).json({
+        allowed: false,
+        reason: "IP_NOT_FOUND"
+      });
+    }
+
+    // 2️⃣ panggil geo API pakai IP itu
+    const geoRes = await fetch(
+      "https://api.vinzzyy.my.id/api/geo",
+      { headers: { "x-forwarded-for": ip } }
+    );
+
+    if (!geoRes.ok) {
+      throw new Error("GEO_API_FAILED");
+    }
 
     const geo = await geoRes.json();
-    
-    const ip = geo.ip;
-    
-    if (!ip) {
-      return res.status(403).json({ 
-        allowed: false,
-        reason: "IP_NOT_FOUND" });
-    }
 
     await connectMongo();
 
-    // 1️⃣ cek DB block
+    // 3️⃣ cek DB block
     const blocked = await BlockIP.findOne({ ip });
     if (blocked) {
-      return res.status(403).json({ allowed: false });
+      return res.status(403).json({
+        allowed: false,
+        reason: "IP_BLOCKED"
+      });
     }
 
-    
+    // 4️⃣ cek country
     if (geo.country_code !== "ID") {
       await BlockIP.updateOne(
         { ip },
@@ -69,9 +87,14 @@ export default async function handler(req, res) {
       });
     }
 
+    // 5️⃣ lolos
     return res.json({ allowed: true });
-  } catch {
-    return res.status(403).json({ allowed: false,
-        reason: "ERROR_SERVER" });
+
+  } catch (err) {
+    console.error("IP-GUARD ERROR:", err.message);
+    return res.status(403).json({
+      allowed: false,
+      reason: "ERROR_SERVER"
+    });
   }
 }
