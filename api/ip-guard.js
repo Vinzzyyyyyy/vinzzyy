@@ -59,7 +59,7 @@ export default async function handler(req, res) {
         {
           $set: {
             ip,
-            reason: `Country blocked: ${.country_code}`,
+            reason: `Country blocked: ${country_code}`,
             source: "country",
             blockedAt: new Date()
           }
