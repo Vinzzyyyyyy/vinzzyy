@@ -53,13 +53,13 @@ export default async function handler(req, res) {
       });
     }
 
-    if (geo.country_code !== "ID") {
+    if (country_code !== "ID") {
       await BlockIP.updateOne(
         { ip },
         {
           $set: {
             ip,
-            reason: `Country blocked: ${geo.country_code}`,
+            reason: `Country blocked: ${.country_code}`,
             source: "country",
             blockedAt: new Date()
           }
