@@ -18,9 +18,17 @@ const BlockIP =
       ip: String,
       reason: String,
       source: String,
-      blockedAt: Date
+      blockedAt: {
+        type: Date,
+        default: () => new Date(), // UTC default
+        get: (v) => toWIB(v)        // convert ke WIB saat dikirim
+      }
     })
   );
+
+function toWIB(date) {
+  return new Date(new Date(date).getTime() + 7 * 60 * 60 * 1000);
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -49,7 +57,23 @@ export default async function handler(req, res) {
       });
     }
 
-    if (country_code !== "ID") {
+    if (geo.country_code !== "ID") {
+      await BlockIP.updateOne(
+        { ip },
+        {
+          $set: {
+            ip,
+            reason: `Country blocked: ${geo.country_code}`,
+            source: "country",
+            blockedAt: {
+              type: Date,
+              default: () => new Date(), // UTC default
+              get: (v) => toWIB(v)        // convert ke WIB saat dikirim
+            }
+          }
+        },
+        { upsert: true }
+      );
       return res.status(403).json({
         allowed: false,
         reason: "COUNTRY_NOT_ALLOWED"
