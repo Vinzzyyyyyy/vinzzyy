@@ -24,26 +24,20 @@ const BlockIP =
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method === "OPTIONS") return res.end();
 
   try {
-    const ip =
-      req.headers["x-vercel-forwarded-for"] ||
-      req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
+    const { ip, country_code } = req.body || {};
 
-    if (!ip) {
-      return res.json({ allowed: true });
+    if (!ip || !country_code) {
+      return res.status(400).json({
+        allowed: false,
+        reason: "INVALID_PAYLOAD"
+      });
     }
-
-    const geoRes = await fetch(
-      "https://api.vinzzyy.my.id/api/geo",
-      { headers: { "x-forwarded-for": ip } }
-    );
-
-    const geo = await geoRes.json();
 
     await connectMongo();
 
@@ -55,7 +49,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (geo.country_code !== "ID") {
+    if (country_code !== "ID") {
       return res.status(403).json({
         allowed: false,
         reason: "COUNTRY_NOT_ALLOWED"
@@ -65,8 +59,7 @@ export default async function handler(req, res) {
     return res.json({ allowed: true });
 
   } catch (err) {
-    console.error(err);
-    return res.status(403).json({
+    return res.status(500).json({
       allowed: false,
       reason: "ERROR_SERVER"
     });
