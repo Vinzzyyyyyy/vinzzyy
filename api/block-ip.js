@@ -15,6 +15,7 @@ const BlockIPSchema = new mongoose.Schema({
   ip: { type: String, unique: true },
   reason: String,
   source: { type: String, default: "Blacklisted By Admin" },
+  blockDevice: { type: Boolean, default: false }, // 🔥 NEW
   blockedAt: { type: Date, default: Date.now }
 });
 
@@ -24,7 +25,7 @@ const BlockIP =
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
@@ -38,12 +39,13 @@ export default async function handler(req, res) {
 
   /* ADD / UPDATE */
   if (req.method === "POST") {
-    const { ip, reason } = req.body;
+    const { ip, reason, blockDevice } = req.body;
     if (!ip) return res.status(400).json({ error: "IP required" });
 
     await BlockIP.updateOne(
       { ip },
-      { $set: { ip, reason, source: "Blacklisted By Admin" } },
+      { $set: {ip, reason, blockDevice: !!blockDevice, source: "Blacklisted By Admin" }
+      },
       { upsert: true }
     );
 
