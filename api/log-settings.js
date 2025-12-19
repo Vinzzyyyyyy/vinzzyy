@@ -26,18 +26,18 @@ const LogSchema = new mongoose.Schema({
   country_code: String,
   latitude: Number,
   longitude: Number,
-  time: new Date()
-}, {
-  toJSON: { getters: true },
-  toObject: { getters: true }
+  time: {
+    type: Date,
+    default: Date.now
+  }
 });
+
 
 const Log = mongoose.models.Log || mongoose.model("Log", LogSchema);
 
 export default async function handler(req, res) {
   // CORS headers
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -49,33 +49,41 @@ export default async function handler(req, res) {
     await connectMongo();
 
     if (req.method === "POST") {
-      const { ip, city, region, country } = req.body;
+  const { ip, city, region, country_code, latitude, longitude } = req.body;
 
-      const existing = await Log.findOne({
-        ip,
-        city,
-        region,
-        country_code,
-        time: { $gte: new Date() }
-      });
+  if (!ip) {
+    return res.status(400).json({
+      success: false,
+      error: "IP is required"
+    });
+  }
 
-      if (existing) {
-        return res.status(200).json({
-          success: true,
-          skipped: true,
-          message: "Log sudah ada, tidak disimpan ulang.",
-        });
-      }
+  // Cegah spam log (1 IP / 5 menit)
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-      const log = new Log({
-        ...req.body,
-        time: new Date() // tetap simpan UTC
-      });
+  const existing = await Log.findOne({
+    ip,
+    time: { $gte: fiveMinutesAgo }
+  });
 
-      await log.save();
+  if (existing) {
+    return res.status(200).json({
+      success: true,
+      skipped: true,
+      message: "Log recent, skipped"
+    });
+  }
 
-      return res.status(200).json({ success: true, log });
-    }
+  const log = new Log({ip, city, region, country_code, latitude, longitude });
+
+  await log.save();
+
+  return res.status(200).json({
+    success: true,
+    log
+  });
+}
+
 
     if (req.method === "GET") {
       const logs = await Log.find().sort({ time: -1 }).limit(20);
