@@ -18,25 +18,15 @@ async function connectMongo() {
   return cached.conn;
 }
 
-// Fungsi ubah waktu UTC → WIB (Asia/Jakarta)
-function toWIB(date) {
-  return new Date(new Date(date).getTime() + 7 * 60 * 60 * 1000);
-}
-
 // Schema
 const LogSchema = new mongoose.Schema({
   ip: String,
   city: String,
   region: String,
-  country: String,
+  country_code: String,
   latitude: Number,
   longitude: Number,
-  org: String,
-  time: {
-    type: Date,
-    default: () => new Date(), // UTC default
-    get: (v) => toWIB(v)        // convert ke WIB saat dikirim
-  }
+  time: new Date()
 }, {
   toJSON: { getters: true },
   toObject: { getters: true }
@@ -61,18 +51,12 @@ export default async function handler(req, res) {
     if (req.method === "POST") {
       const { ip, city, region, country } = req.body;
 
-      // Cek apakah sudah ada log hari ini (WIB)
-      const startOfDayWIB = toWIB(new Date());
-      startOfDayWIB.setHours(0, 0, 0, 0);
-
-      const startOfDayUTC = new Date(startOfDayWIB.getTime() - 7 * 60 * 60 * 1000);
-
       const existing = await Log.findOne({
         ip,
         city,
         region,
-        country,
-        time: { $gte: startOfDayUTC }
+        country_code,
+        time: { $gte: new Date() }
       });
 
       if (existing) {
