@@ -49,32 +49,41 @@ export default async function handler(req, res) {
     await connectMongo();
 
     if (req.method === "POST") {
-  const { ip, city, region, country_code, latitude, longitude } = req.body;
+      const { ip, city, region, country_code, latitude, longitude } = req.body;
+    
+      if (!ip) {
+        return res.status(400).json({
+          success: false,
+          error: "IP is required"
+        });
+      }
+    
+      const existing = await Log.findOne({ ip });
+      if (existing) {
+        return res.status(200).json({ 
+          success: true,
+          skipped: true,
+          message: "Log recent, skipped"
+        });
+      }
+    
+      const log = new Log({
+        ip,
+        city,
+        region,
+        country_code,
+        latitude,
+        longitude
+      });
+    
+      await log.save();
+    
+      return res.status(200).json({
+        success: true,
+        log
+      });
+    }
 
-  if (!ip) {
-    return res.status(400).json({
-      success: false,
-      error: "IP is required"
-    });
-  }
-
-
-  const existing = await Log.findOne({ ip }});
-  if (existing) {
-    return res.status(200).json({ 
-      success: true, skipped: true, message: "Log recent, skipped"
-    });
-  }
-
-  const log = new Log({ip, city, region, country_code, latitude, longitude });
-
-  await log.save();
-
-  return res.status(200).json({
-    success: true,
-    log
-  });
-}
 
 
     if (req.method === "GET") {
