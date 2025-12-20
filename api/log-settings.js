@@ -1,8 +1,22 @@
-import { MongoClient } from "mongodb";
-import fetch from "node-fetch";
+import mongoose from "mongoose";
 
-const uri = process.env.MONGODB_URI; // MongoDB Atlas URI
-const client = new MongoClient(uri);
+// Cache mongoose
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectMongo() {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }).then(m => m);
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
 
 // Schema
 const LogSchema = new mongoose.Schema({
@@ -32,9 +46,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await client.connect();
-    const db = client.db("Database_Vinzzyy");
-    const collection = db.collection("logs");
+    await connectMongo();
 
     if (req.method === "POST") {
   const { ip, city, region, country_code, latitude, longitude } = req.body;
@@ -46,18 +58,24 @@ export default async function handler(req, res) {
     });
   }
 
-  // Cegah spam log (1 IP / 5 menit)
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-// cek kalau udah ada
-  const exist = await collection.findOne({ ip });
-  if (exist) return res.status(409).json({ error: "User sudah ada di database" });
 
-  await collection.insertOne({ ip, city, region, country_code, latitude, longitude });   
+  const existing = await Log.findOne({ ip }});
+  if (existing) {
+    return res.status(200).json({ 
+      success: true, skipped: true, message: "Log recent, skipped"
+    });
+  }
+
+  const log = new Log({ip, city, region, country_code, latitude, longitude });
+
+  await log.save();
+
   return res.status(200).json({
     success: true,
     log
   });
 }
+
 
     if (req.method === "GET") {
       const logs = await Log.find().sort({ time: -1 }).limit(20);
