@@ -22,8 +22,33 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
       const users = await collection.find({}).toArray();
-
-      // update displayName realtime
+    
+      // ambil semua userId Roblox
+      const userIds = users.map(u => u.id);
+    
+      // === ROBLOX PRESENCE CHECK ===
+      let presenceMap = {};
+      try {
+        const presenceRes = await fetch(
+          "https://presence.roblox.com/v1/presence/users",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userIds })
+          }
+        );
+    
+        if (presenceRes.ok) {
+          const presenceData = await presenceRes.json();
+          presenceData.userPresences.forEach(p => {
+            presenceMap[p.userId] = p.userPresenceType;
+          });
+        }
+      } catch (e) {
+        console.error("Presence error:", e);
+      }
+    
+      // update displayName + inject presence
       const updatedUsers = await Promise.all(
         users.map(async (user) => {
           try {
@@ -31,7 +56,6 @@ export default async function handler(req, res) {
             if (r.ok) {
               const data = await r.json();
               if (data.displayName && data.displayName !== user.displayName) {
-                // update ke DB kalau beda
                 await collection.updateOne(
                   { id: user.id },
                   { $set: { displayName: data.displayName } }
@@ -39,13 +63,16 @@ export default async function handler(req, res) {
                 user.displayName = data.displayName;
               }
             }
-          } catch (err) {
-            console.error(`Gagal update ${user.id}:`, err);
-          }
-          return user;
+          } catch {}
+    
+          return {
+            ...user,
+            presence: presenceMap[user.id] ?? 0
+            // 0 offline | 1 online | 2 in game | 3 studio
+          };
         })
       );
-
+    
       return res.status(200).json(updatedUsers);
     }
 
