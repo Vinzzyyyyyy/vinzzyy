@@ -60,7 +60,6 @@ export default async function handler(req, res) {
       let presenceMap = {};
 
       /* === ROBLOX PRESENCE === */
-      /* === ROBLOX PRESENCE === */
       try {
         const presenceRes = await fetch(
           "https://presence.roblox.com/v1/presence/users",
@@ -70,25 +69,12 @@ export default async function handler(req, res) {
             body: JSON.stringify({ userIds })
           }
         );
-      
-        console.log("Presence status:", presenceRes.status);
-      
-        const raw = await presenceRes.text();
-        console.log("Presence raw:", raw);
-      
-        let presenceData = {};
-        if (presenceRes.ok && raw) {
-          try {
-            presenceData = JSON.parse(raw);
-          } catch {
-            presenceData = {};
-          }
-        }
-      
-        if (presenceData.userPresences) {
+
+        if (presenceRes.ok) {
+          const presenceData = await presenceRes.json();
           presenceData.userPresences.forEach(p => {
             presenceMap[p.userId] = {
-              type: p.userPresenceType, // 0 offline | 1 online | 2 ingame | 3 studio
+              type: p.userPresenceType, // 0-3
               placeId: p.placeId || null
             };
           });
@@ -96,7 +82,6 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error("Presence error:", err);
       }
-
 
       /* === COLLECT PLACE IDs === */
       const placeIds = Object.values(presenceMap)
