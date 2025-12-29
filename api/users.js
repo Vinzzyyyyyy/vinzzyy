@@ -62,13 +62,28 @@ export default async function handler(req, res) {
       /* === ROBLOX PRESENCE === */
       try {
         const presenceRes = await fetch(
-          "https://presence.roblox.com/v1/presence/users",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userIds })
-          }
-        );
+           "https://presence.roblox.com/v1/presence/users",
+           {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ userIds })
+           }
+         );
+         
+         // === DEBUG SEMENTARA (WAJIB) ===
+         console.log("Presence status:", presenceRes.status);
+         
+         const raw = await presenceRes.text();
+         console.log("Presence raw:", raw);
+         
+         // parse manual biar aman
+         let presenceData = {};
+         try {
+           presenceData = JSON.parse(raw);
+         } catch {
+           presenceData = {};
+         }
+
 
         if (presenceRes.ok) {
           const presenceData = await presenceRes.json();
