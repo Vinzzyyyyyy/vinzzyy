@@ -60,36 +60,35 @@ export default async function handler(req, res) {
       let presenceMap = {};
 
       /* === ROBLOX PRESENCE === */
+      /* === ROBLOX PRESENCE === */
       try {
         const presenceRes = await fetch(
-           "https://presence.roblox.com/v1/presence/users",
-           {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ userIds })
-           }
-         );
-         
-         // === DEBUG SEMENTARA (WAJIB) ===
-         console.log("Presence status:", presenceRes.status);
-         
-         const raw = await presenceRes.text();
-         console.log("Presence raw:", raw);
-         
-         // parse manual biar aman
-         let presenceData = {};
-         try {
-           presenceData = JSON.parse(raw);
-         } catch {
-           presenceData = {};
-         }
-
-
-        if (presenceRes.ok) {
-          const presenceData = await presenceRes.json();
+          "https://presence.roblox.com/v1/presence/users",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userIds })
+          }
+        );
+      
+        console.log("Presence status:", presenceRes.status);
+      
+        const raw = await presenceRes.text();
+        console.log("Presence raw:", raw);
+      
+        let presenceData = {};
+        if (presenceRes.ok && raw) {
+          try {
+            presenceData = JSON.parse(raw);
+          } catch {
+            presenceData = {};
+          }
+        }
+      
+        if (presenceData.userPresences) {
           presenceData.userPresences.forEach(p => {
             presenceMap[p.userId] = {
-              type: p.userPresenceType, // 0-3
+              type: p.userPresenceType, // 0 offline | 1 online | 2 ingame | 3 studio
               placeId: p.placeId || null
             };
           });
@@ -97,6 +96,7 @@ export default async function handler(req, res) {
       } catch (err) {
         console.error("Presence error:", err);
       }
+
 
       /* === COLLECT PLACE IDs === */
       const placeIds = Object.values(presenceMap)
